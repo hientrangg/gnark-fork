@@ -17,6 +17,8 @@ github.com/google/pprof v0.0.0-20230207041349-798e818bf904/go.mod h1:uglQLonpP8q
 github.com/google/subcommands v1.2.0/go.mod h1:ZjhPrFU+Olkh9WazFPsl27BQ4UPiG37m3yTrtFlrHVk=
 github.com/hientrangg/gnark-crypto v0.0.2 h1:G3gSHy/yGhwYv3e4jcsE9la4Fbx6FHEmdSuIcNuf2Jw=
 github.com/hientrangg/gnark-crypto v0.0.2/go.mod h1:a2DQL4+5ywF6safEeZFEPGRiiGbjzGFRUN2sg06VuU4=
+github.com/hientrangg/gnark-crypto v0.0.3 h1:JNTuXfzpAn9APR1/Y/Q2XeNKjFExQhfjJitXQT0VnBk=
+github.com/hientrangg/gnark-crypto v0.0.3/go.mod h1:a2DQL4+5ywF6safEeZFEPGRiiGbjzGFRUN2sg06VuU4=
 github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=

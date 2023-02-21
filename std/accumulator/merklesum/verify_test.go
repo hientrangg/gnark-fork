@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package merkle
+package merklesum
 
 import (
 	"bytes"
 	"crypto/rand"
-	"github.com/consensys/gnark-crypto/accumulator/merkletree"
+	"github.com/consensys/gnark-crypto/accumulator/merklesumtree"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/hash"
 	"github.com/consensys/gnark/backend"
@@ -34,8 +34,8 @@ import (
 
 // MerkleProofTest used for testing only
 type MerkleProofTest struct {
-	M    MerkleProof
-	Leaf frontend.Variable
+	M    MerkleSumProof
+	Leaf Leaf
 }
 
 func (mp *MerkleProofTest) Define(api frontend.API) error {
@@ -69,7 +69,7 @@ func TestVerify(t *testing.T) {
 
 		// create the circuit
 		var circuit MerkleProofTest
-		circuit.M.Path = make([]frontend.Variable, depth+1)
+		circuit.M.PathHash = make([]frontend.Variable, depth+1)
 		cc, err := frontend.Compile(tData.curve.ScalarField(), r1cs.NewBuilder, &circuit)
 		if err != nil {
 			t.Fatal(err)
@@ -82,25 +82,34 @@ func TestVerify(t *testing.T) {
 		for proofIndex := uint64(0); proofIndex < 32; proofIndex++ {
 
 			// generate random data, the Merkle tree will be of depth log(64) = 6
-			var buf bytes.Buffer
+			var buf1 bytes.Buffer
 			for i := 0; i < numLeaves; i++ {
 				leaf, err := rand.Int(rand.Reader, mod)
 				assert.NoError(err)
 				b := leaf.Bytes()
-				buf.Write(make([]byte, modNbBytes-len(b)))
-				buf.Write(b)
+				buf1.Write(make([]byte, modNbBytes-len(b)))
+				buf1.Write(b)
+			}
+
+			var buf2 bytes.Buffer
+			for i := 0; i < numLeaves; i++ {
+				leaf, err := rand.Int(rand.Reader, mod)
+				assert.NoError(err)
+				b := leaf.Bytes()
+				buf2.Write(make([]byte, modNbBytes-len(b)))
+				buf2.Write(b)
 			}
 
 			// create the proof using the go code
-			hGo := tData.hash.New()
-			merkleRoot, proofPath, numLeaves, err := merkletree.BuildReaderProof(&buf, hGo, tData.segmentSize, proofIndex)
+			hFunc := tData.hash.New()
+			merkleHashRoot, merkleSumRoot, proofPathHash, proofPathSum, numLeaves, err := merkletree.BuildReaderProof(&buf1, &buf2, hFunc, tData.segmentSize, proofIndex)
 			if err != nil {
 				t.Fatal(err)
 				os.Exit(-1)
 			}
 
 			// verfiy the proof in plain go
-			verified := merkletree.VerifyProof(hGo, merkleRoot, proofPath, proofIndex, numLeaves)
+			verified := merkletree.VerifyProof(hFunc, merkleRoot, proofPath, proofIndex, numLeaves)
 			if !verified {
 				t.Fatal("The merkle proof in plain go should pass")
 			}

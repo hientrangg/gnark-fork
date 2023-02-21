@@ -43,7 +43,7 @@ limitations under the License.
 */
 
 // Package merkle provides a ZKP-circuit function to verify merkle proofs.
-package merkle
+package merklesum
 
 import (
 	"github.com/consensys/gnark/frontend"
@@ -51,18 +51,22 @@ import (
 )
 
 // MerkleProof stores the path, the root hash and an helper for the Merkle proof.
-type MerkleProof struct {
+type MerkleSumProof struct {
 
 	// RootHash root of the Merkle tree
-	RootHash frontend.Variable
+	RootHash, RootSum frontend.Variable
 
 	// Path path of the Merkle proof
-	Path []frontend.Variable
+	PathHash, PathSum []frontend.Variable
 }
 
-// leafSum returns the hash created from data inserted to form a leaf.
+type Leaf struct {
+	data	 frontend.Variable
+	balance	 frontend.Variable
+}
+// leafHash returns the hash created from data inserted to form a leaf.
 // Without domain separation.
-func leafSum(api frontend.API, h hash.Hash, data frontend.Variable) frontend.Variable {
+func leafHash(api frontend.API, h hash.Hash, data frontend.Variable) frontend.Variable {
 
 	h.Reset()
 	h.Write(data)
@@ -73,7 +77,7 @@ func leafSum(api frontend.API, h hash.Hash, data frontend.Variable) frontend.Var
 
 // nodeSum returns the hash created from data inserted to form a leaf.
 // Without domain separation.
-func nodeSum(api frontend.API, h hash.Hash, a, b frontend.Variable) frontend.Variable {
+func nodeHash(api frontend.API, h hash.Hash, a, b frontend.Variable) frontend.Variable {
 
 	h.Reset()
 	h.Write(a, b)
@@ -82,26 +86,36 @@ func nodeSum(api frontend.API, h hash.Hash, a, b frontend.Variable) frontend.Var
 	return res
 }
 
+// nodeSum returns the sum created from data inserted to form a leaf.
+// Without domain separation.
+func nodeSum(api frontend.API, a, b frontend.Variable) frontend.Variable {
+	res := api.Add(a, b)
+	return res
+}
+
 // VerifyProof takes a Merkle root, a proofSet, and a proofIndex and returns
 // true if the first element of the proof set is a leaf of data in the Merkle
 // root. False is returned if the proof set or Merkle root is nil, and if
 // 'numLeaves' equals 0.
-func (mp *MerkleProof) VerifyProof(api frontend.API, h hash.Hash, leaf frontend.Variable) {
+func (mp *MerkleSumProof) VerifyProof(api frontend.API, h hash.Hash, leaf Leaf) {
 
-	depth := len(mp.Path) - 1
-	sum := leafSum(api, h, mp.Path[0])
+	depth := len(mp.PathHash) - 1
+	hash := leafHash(api, h, mp.PathHash[0])
+	sum := mp.PathSum[0]
 
 	// The binary decomposition is the bitwise negation of the order of hashes ->
 	// If the path in the plain go code is 					0 1 1 0 1 0
 	// The binary decomposition of the leaf index will be 	1 0 0 1 0 1 (little endian)
-	binLeaf := api.ToBinary(leaf, depth)
+	binLeaf := api.ToBinary(leaf.data, depth)
 
-	for i := 1; i < len(mp.Path); i++ { // the size of the loop is fixed -> one circuit per size
-		d1 := api.Select(binLeaf[i-1], mp.Path[i], sum)
-		d2 := api.Select(binLeaf[i-1], sum, mp.Path[i])
-		sum = nodeSum(api, h, d1, d2)
+	for i := 1; i < len(mp.PathHash); i++ { // the size of the loop is fixed -> one circuit per size
+		d1 := api.Select(binLeaf[i-1], mp.PathHash[i], hash)
+		d2 := api.Select(binLeaf[i-1], hash, mp.PathHash[i])
+		hash = nodeHash(api, h, d1, d2)
+		sum = nodeSum(api,sum, mp.PathSum[i])
 	}
 
 	// Compare our calculated Merkle root to the desired Merkle root.
-	api.AssertIsEqual(sum, mp.RootHash)
+	api.AssertIsEqual(hash, mp.RootHash)
+	api.AssertIsEqual(sum, mp.RootSum)
 }
