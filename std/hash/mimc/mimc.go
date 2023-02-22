@@ -72,3 +72,12 @@ func (h *MiMC) Sum() frontend.Variable {
 	return h.h
 
 }
+
+func MimcHash(api frontend.API, data ...frontend.Variable) frontend.Variable {
+	hFunc, err := NewMiMC(api)
+	if err != nil {
+		panic(err)
+	}
+	hFunc.Write(data)
+	return hFunc.Sum()
+}

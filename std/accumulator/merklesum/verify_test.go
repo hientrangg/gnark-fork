@@ -19,7 +19,7 @@ package merklesum
 import (
 	"bytes"
 	"crypto/rand"
-	"github.com/consensys/gnark-crypto/accumulator/merklesumtree"
+	merkleSum "github.com/consensys/gnark-crypto/accumulator/merklesumtree"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/hash"
 	"github.com/consensys/gnark/backend"
@@ -36,6 +36,7 @@ import (
 type MerkleProofTest struct {
 	M    MerkleSumProof
 	Leaf Leaf
+	Index frontend.Variable
 }
 
 func (mp *MerkleProofTest) Define(api frontend.API) error {
@@ -70,6 +71,7 @@ func TestVerify(t *testing.T) {
 		// create the circuit
 		var circuit MerkleProofTest
 		circuit.M.PathHash = make([]frontend.Variable, depth+1)
+		circuit.M.PathSum = make([]frontend.Variable, depth+1)
 		cc, err := frontend.Compile(tData.curve.ScalarField(), r1cs.NewBuilder, &circuit)
 		if err != nil {
 			t.Fatal(err)
@@ -102,25 +104,28 @@ func TestVerify(t *testing.T) {
 
 			// create the proof using the go code
 			hFunc := tData.hash.New()
-			merkleHashRoot, merkleSumRoot, proofPathHash, proofPathSum, numLeaves, err := merkletree.BuildReaderProof(&buf1, &buf2, hFunc, tData.segmentSize, proofIndex)
+			merkleRoot, proofPath, numLeaves, err := merkleSum.BuildReaderProof(&buf1, &buf2, hFunc, tData.segmentSize, proofIndex)
 			if err != nil {
 				t.Fatal(err)
 				os.Exit(-1)
 			}
 
 			// verfiy the proof in plain go
-			verified := merkletree.VerifyProof(hFunc, merkleRoot, proofPath, proofIndex, numLeaves)
+			verified := merkleSum.VerifyProof(hFunc, merkleRoot, proofPath, proofIndex, numLeaves)
 			if !verified {
 				t.Fatal("The merkle proof in plain go should pass")
 			}
 
 			// witness
 			var witness MerkleProofTest
-			witness.Leaf = proofIndex
-			witness.M.RootHash = merkleRoot
-			witness.M.Path = make([]frontend.Variable, depth+1)
+			witness.Index = proofIndex
+			witness.M.RootHash = merkleRoot.Hash
+			witness.M.RootSum = merkleRoot.Sum
+			witness.M.PathHash = make([]frontend.Variable, depth+1)
+			witness.M.PathSum = make([]frontend.Variable, depth+1)
 			for i := 0; i < depth+1; i++ {
-				witness.M.Path[i] = proofPath[i]
+				witness.M.PathHash[i] = proofPath.Hash[i]
+				witness.M.PathSum[i] = proofPath.Sum[i]
 			}
 
 			w, err := frontend.NewWitness(&witness, tData.curve.ScalarField())
